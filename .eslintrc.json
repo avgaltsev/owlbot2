@@ -1,0 +1,87 @@
+{
+	"root": true,
+	"env": {
+		"node": true,
+		"es2022": true
+	},
+	"parser": "@typescript-eslint/parser",
+	"parserOptions": {
+		"sourceType": "module",
+		"project": "./tsconfig.json"
+	},
+	"plugins": [
+		"@typescript-eslint"
+	],
+	"extends": [
+		"@somethings/eslint-config-base",
+		"@somethings/eslint-config-typescript"
+	],
+	"rules": {
+		// Disabling `camelcase` rule to support Telegram API snake_case property names.
+		"camelcase": "off"
+	},
+	"overrides": [
+		{
+			"files": ["*.ts"],
+			"rules": {
+				// Adding `objectLiteralProperty` selector to support Telegram API snake_case property names.
+				"@typescript-eslint/naming-convention": [
+					"error",
+					{
+						"selector": "default",
+						"format": ["camelCase"],
+						"leadingUnderscore": "forbid",
+						"trailingUnderscore": "forbid"
+					},
+					{
+						"selector": "variable",
+						"modifiers": ["const", "global"],
+						"format": ["UPPER_CASE"],
+						"leadingUnderscore": "forbid",
+						"trailingUnderscore": "forbid"
+					},
+					{
+						"selector": "objectLiteralProperty",
+						"format": ["camelCase", "snake_case"],
+						"leadingUnderscore": "forbid",
+						"trailingUnderscore": "forbid"
+					},
+					{
+						"selector": "typeAlias",
+						"format": ["PascalCase"],
+						"leadingUnderscore": "forbid",
+						"trailingUnderscore": "forbid"
+					},
+					{
+						"selector": "enum",
+						"format": ["PascalCase"],
+						"leadingUnderscore": "forbid",
+						"trailingUnderscore": "forbid"
+					},
+					{
+						"selector": "class",
+						"format": ["PascalCase"],
+						"leadingUnderscore": "forbid",
+						"trailingUnderscore": "forbid"
+					},
+					{
+						"selector": "interface",
+						"format": ["PascalCase"],
+						"custom": {
+							"regex": "^I[A-Z]",
+							"match": false
+						},
+						"leadingUnderscore": "forbid",
+						"trailingUnderscore": "forbid"
+					},
+					{
+						"selector": "typeParameter",
+						"format": ["PascalCase"],
+						"leadingUnderscore": "forbid",
+						"trailingUnderscore": "forbid"
+					}
+				]
+			}
+		}
+	]
+}
