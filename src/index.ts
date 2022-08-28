@@ -9,14 +9,18 @@ export async function main(): Promise<void> {
 	const poller = new Poller(config.poller);
 
 	poller.on("start", () => {
-		console.log("Polling started");
+		bot.sendMessage("Polling started");
 	});
 
-	poller.on("liveStart", () => {
-		console.log("Live stream found");
+	poller.on("liveStart", (liveStream) => {
+		bot.sendMessage(`Live stream found: ${liveStream.title}`);
 	});
 
-	poller.on("liveEnd", () => {
-		bot.sendMessage("Live stream ended");
+	poller.on("liveSwitch", (oldLiveStream, newLiveStream) => {
+		bot.sendMessage(`Live stream switched: from ${oldLiveStream.title} to ${newLiveStream.title}`);
+	});
+
+	poller.on("liveEnd", (liveStream) => {
+		bot.sendMessage(`Live stream ended: ${liveStream.title}`);
 	});
 }

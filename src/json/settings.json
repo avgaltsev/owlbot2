@@ -1,0 +1,5 @@
+{
+	"channelUrl": "https://www.youtube.com/c/%channelName",
+	"apiHost": "www.youtube.com",
+	"apiPath": "/youtubei/v1/browse?key=%apiKey&prettyPrint=false"
+}

@@ -3,102 +3,44 @@ import {launch, Browser} from "puppeteer";
 import {EventEmitter} from "stream";
 import {request, Agent} from "https";
 
-import * as pollRequestMetadata from "./poll-request-metadata.json";
-import * as pollRequestPayload from "./poll-request-payload.json";
+import * as settings from "./json/settings.json";
+import * as pollRequestPayload from "./json/poll-request-payload.json";
 
-type PollType = "featured" | "videos";
-
-function expandPollRequestPayload(type: PollType): typeof pollRequestPayload {
-	const params = {
-		"featured": "EghmZWF0dXJlZPIGBAoCMgA%3D",
-		"videos": "EgZ2aWRlb3PyBgQKAjoA",
-	};
-
-	return {
-		...pollRequestPayload,
-		context: {
-			...pollRequestPayload.context,
-			client: {
-				...pollRequestPayload.context.client,
-				originalUrl: pollRequestPayload.context.client.originalUrl.replace("%1", type),
-				mainAppWebInfo: {
-					...pollRequestPayload.context.client.mainAppWebInfo,
-					graftUrl: pollRequestPayload.context.client.mainAppWebInfo.graftUrl.replace("%1", type),
-				},
-			},
-		},
-		params: params[type],
-	};
+interface TemplateValues {
+	[name: string]: string;
 }
 
-function extractPollResponseContent(pollResponse: any, type: PollType): any {
-	const tabs = pollResponse.contents.twoColumnBrowseResultsRenderer.tabs as Array<any>;
-
-	const tab = tabs.find((tab) => { // lint shadowed variable
-		const webCommandMetadataUrl = pollRequestMetadata.webCommandMetadataUrl.replace("%1", type);
-
-		return tab?.tabRenderer?.endpoint?.commandMetadata?.webCommandMetadata?.url === webCommandMetadataUrl;
-	});
-
-	return tab?.tabRenderer?.content;
+function expandTemplate(template: string, values: TemplateValues): string {
+	return Object.entries(values).reduce((result, [name, value]) => {
+		return result.replace(`%${name}`, value);
+	}, template);
 }
 
-interface Session {
-	key: string;
+interface Session extends TemplateValues {
+	apiKey: string;
+	channelId: string;
 }
 
-// interface Header {
-// 	name: string;
-// 	value: string;
-// }
-
-// interface Request {
-// 	url: string;
-// 	headers: Array<Header>;
-// 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-// 	body: any;
-// }
-
-// const HEADERS_COMMON: Array<Header> = [];
-
-// const REQUEST_COMMON: Request = {
-// 	url: "https://www.youtube.com/youtubei/v1/browse?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8&prettyPrint=false",
-// 	headers: [...HEADERS_COMMON],
-// 	body: {},
-// };
-
-// const REQUEST_FEATURED: Request = {
-// 	...REQUEST_COMMON,
-// };
-
-// const REQUEST_VIDEOS: Request = {
-// 	...REQUEST_COMMON,
-// };
-
-interface YoutubeConfig {
-	["INNERTUBE_API_KEY"]: string;
+interface LiveStream {
+	id: string;
+	title: string;
+	url: string;
 }
 
 const INJECTED_CODE = `
 	(function () {
-		const properties = [
-			"INNERTUBE_API_KEY",
-		];
-
-		const output = properties.reduce((result, property) => {
-			result[property] = ytcfg.data_[property];
-
-			return result;
-		}, {});
-
-		return output;
+		return {
+			apiKey: ytcfg.data_.INNERTUBE_API_KEY,
+			channelId: ytInitialData.metadata.channelMetadataRenderer.externalId,
+		};
 	})();
 `;
 
 interface PollerEvents {
 	start: () => void;
-	liveStart: (stream: string) => void;
-	liveEnd: (stream: string) => void;
+	liveStart: (liveStream: LiveStream) => void;
+	liveSwitch: (oldLiveStream: LiveStream, newLiveStream: LiveStream) => void;
+	liveEnd: (liveStream: LiveStream) => void;
 }
 
 interface PollerEventEmitter {
@@ -123,7 +65,7 @@ export class Poller implements PollerEmitter {
 	private browserPromise: Promise<Browser> | null = null;
 	private sessionPromise: Promise<Session> | null = null;
 
-	// private live: string | null = null;
+	private liveStream: LiveStream | null = null;
 
 	public constructor(
 		private config: PollerConfig,
@@ -140,14 +82,12 @@ export class Poller implements PollerEmitter {
 	private async start(): Promise<void> {
 		this.emitter.emit("start");
 
-		const session = await this.getSession();
-
 		setImmediate(() => {
-			this.poll(session.key);
+			this.poll();
 		});
 
 		setInterval(() => {
-			this.poll(session.key);
+			this.poll();
 		}, this.config.pollInterval);
 	}
 
@@ -175,37 +115,57 @@ export class Poller implements PollerEmitter {
 		const browser = await this.getBrowser();
 		const page = await browser.newPage();
 
-		await page.goto(this.config.channelUrl);
+		const url = await this.expandTemplateWithLocalValues(settings.channelUrl);
 
-		const youtubeConfig = await page.evaluate(INJECTED_CODE) as YoutubeConfig;
+		await page.goto(url);
+
+		const session = await page.evaluate(INJECTED_CODE) as Session;
 
 		page.close();
 
-		return {
-			key: youtubeConfig.INNERTUBE_API_KEY,
-		};
+		return session;
 	}
 
-	private async poll(key: string): Promise<void> {
-		const [pollResponseFeatured, pollResponseVideos] = await Promise.all([
-			this.pollByType(key, "featured"),
-			this.pollByType(key, "videos"),
-		]);
+	private async poll(): Promise<void> {
+		const pollResponse = await this.request();
 
-		const contentFeatured = extractPollResponseContent(pollResponseFeatured, "featured");
-		const contentVideos = extractPollResponseContent(pollResponseVideos, "videos");
+		const liveStreamResponse = this.getLiveStreamResponse(pollResponse);
 
-		const hasLiveStreamInFeatured = this.findLiveStreamInFeatured(contentFeatured);
-		const hasLiveStreamInVideos = this.findLiveStreamInVideos(contentVideos);
+		if (liveStreamResponse !== null) {
+			const newLiveStream: LiveStream = {
+				id: liveStreamResponse?.videoId,
+				title: liveStreamResponse?.title?.runs?.[0]?.text,
+				url: liveStreamResponse?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url,
+			};
 
-		console.log(hasLiveStreamInFeatured || hasLiveStreamInVideos);
+			if (this.liveStream !== null) {
+				if (this.liveStream.id === newLiveStream.id) {
+					return;
+				}
+
+				this.emitter.emit("liveSwitch", this.liveStream, newLiveStream);
+			} else {
+				this.emitter.emit("liveStart", newLiveStream);
+			}
+
+			this.liveStream = newLiveStream;
+		} else {
+			if (this.liveStream !== null) {
+				this.emitter.emit("liveEnd", this.liveStream);
+			}
+
+			this.liveStream = null;
+		}
 	}
 
-	private pollByType(key: string, type: PollType): Promise<unknown> {
+	private async request(): Promise<unknown> {
+		const path = await this.expandTemplate(settings.apiPath);
+		const requestPayload = await this.expandPollRequestPayload();
+
 		return new Promise<unknown>((resolve, reject) => {
 			const pollRequest = request({
-				host: pollRequestMetadata.host,
-				path: pollRequestMetadata.path.replace("%1", key),
+				host: settings.apiHost,
+				path,
 				method: "POST",
 				agent: new Agent({keepAlive: true}),
 			}, (response) => {
@@ -226,23 +186,67 @@ export class Poller implements PollerEmitter {
 				reject(err);
 			});
 
-			pollRequest.write(JSON.stringify(expandPollRequestPayload(type)));
+			pollRequest.write(JSON.stringify(requestPayload));
 
 			pollRequest.end();
 		});
 	}
 
-	private findLiveStreamInFeatured(contentFeatured: any): boolean {
-		const contents = contentFeatured?.sectionListRenderer?.contents;
+	private getLiveStreamResponse(pollResponse: any): any | null {
+		const tabs = pollResponse.contents.twoColumnBrowseResultsRenderer.tabs as Array<any>;
 
-		console.log(contents);
-		return false;
+		const tab = tabs.find((tab) => { // lint shadowed variable
+			return tab?.tabRenderer?.selected;
+		});
+
+		const tabRenderer = tab?.tabRenderer;
+		const sectionListRenderer = tabRenderer?.content?.sectionListRenderer;
+		const itemSectionRenderer = sectionListRenderer?.contents?.[0]?.itemSectionRenderer;
+		const gridRenderer = itemSectionRenderer?.contents?.[0]?.gridRenderer;
+		const gridVideoRenderer = gridRenderer?.items?.[0]?.gridVideoRenderer;
+
+		const thumbnailOverlays = gridVideoRenderer?.thumbnailOverlays ?? [];
+
+		const liveOverlay = thumbnailOverlays.find((overlay: any) => {
+			return overlay?.thumbnailOverlayTimeStatusRenderer?.style === "LIVE";
+		});
+
+		return liveOverlay !== undefined ? gridVideoRenderer : null;
 	}
 
-	private findLiveStreamInVideos(contentVideos: any): boolean {
-		const contents = contentVideos?.sectionListRenderer?.contents;
+	private async expandPollRequestPayload(): Promise<typeof pollRequestPayload> {
+		const originalUrl = await this.expandTemplate(pollRequestPayload.context.client.originalUrl);
+		const graftUrl = await this.expandTemplate(pollRequestPayload.context.client.mainAppWebInfo.graftUrl);
+		const browseId = await this.expandTemplate(pollRequestPayload.browseId);
+		const params = await this.expandTemplate(pollRequestPayload.params);
 
-		console.log(contents);
-		return false;
+		return {
+			...pollRequestPayload,
+			context: {
+				...pollRequestPayload.context,
+				client: {
+					...pollRequestPayload.context.client,
+					originalUrl,
+					mainAppWebInfo: {
+						...pollRequestPayload.context.client.mainAppWebInfo,
+						graftUrl,
+					},
+				},
+			},
+			browseId,
+			params,
+		};
+	}
+
+	private expandTemplateWithLocalValues(template: string): string {
+		return expandTemplate(template, this.config.templateValues);
+	}
+
+	private async expandTemplate(template: string): Promise<string> {
+		const session = await this.getSession();
+
+		const templateWithLocalValues = this.expandTemplateWithLocalValues(template);
+
+		return expandTemplate(templateWithLocalValues, session);
 	}
 }

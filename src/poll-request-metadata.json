@@ -1,5 +1,0 @@
-{
-	"host": "www.youtube.com",
-	"path": "/youtubei/v1/browse?key=%1&prettyPrint=false",
-	"webCommandMetadataUrl": "/c/overwatchleague/%1"
-}

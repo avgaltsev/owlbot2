@@ -12,7 +12,7 @@
             "clientVersion": "2.20220826.01.00",
             "osName": "Macintosh",
             "osVersion": "10_14_0",
-            "originalUrl": "https://www.youtube.com/c/overwatchleague/%1",
+            "originalUrl": "https://www.youtube.com/c/%channelName%channelSubpath",
             "screenPixelDensity": 2,
             "platform": "DESKTOP",
             "clientFormFactor": "UNKNOWN_FORM_FACTOR",
@@ -30,7 +30,7 @@
             "userInterfaceTheme": "USER_INTERFACE_THEME_LIGHT",
             "memoryTotalKbytes": "8000000",
             "mainAppWebInfo": {
-                "graftUrl": "/c/overwatchleague/%1",
+                "graftUrl": "/c/%channelName%channelSubpath",
                 "pwaInstallabilityStatus": "PWA_INSTALLABILITY_STATUS_CAN_BE_INSTALLED",
                 "webDisplayMode": "WEB_DISPLAY_MODE_BROWSER",
                 "isWebNativeShareAvailable": false
@@ -120,6 +120,6 @@
             ]
         }
     },
-    "browseId": "UCiAInBL9kUzz1XRxk66v-gw",
-    "params": "EghmZWF0dXJlZPIGBAoCMgA%3D"
+    "browseId": "%channelId",
+    "params": "%pollPayloadParams"
 }
