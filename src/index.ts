@@ -1,21 +1,22 @@
-// import {readFile} from "fs/promises";
-// import path = require("path");
-// import {Scheduler} from "./scheduler";
+import {Bot} from "./bot";
+import {getConfig} from "./config";
+import {Poller} from "./poller";
 
-// const CONFIG_PATH = path.resolve(__dirname, "../config/config.json");
+export async function main(): Promise<void> {
+	const config = await getConfig();
 
-// export function main(): void {
-// 	readFile(CONFIG_PATH, {
-// 		encoding: "utf8",
-// 	}).then((value) => {
-// 		const config = JSON.parse(value);
+	const bot = new Bot(config.bot);
+	const poller = new Poller(config.poller);
 
-// 		new Scheduler(config.bot, config.streams, config.schedule);
-// 	}).catch((reason) => {
-// 		console.log(reason);
-// 	});
-// }
+	poller.on("start", () => {
+		console.log("Polling started");
+	});
 
-export function main(): void {
-	console.log(1);
+	poller.on("liveStart", () => {
+		console.log("Live stream found");
+	});
+
+	poller.on("liveEnd", () => {
+		bot.sendMessage("Live stream ended");
+	});
 }

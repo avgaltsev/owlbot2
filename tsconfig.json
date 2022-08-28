@@ -3,7 +3,9 @@
 		"rootDir": "./src/",
 		"outDir": "./lib/",
 
-		"target": "es5",
+		"target": "es2022",
+		"module": "commonjs",
+		"resolveJsonModule": true,
 		"declaration": false,
 
 		"lib": [

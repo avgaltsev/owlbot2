@@ -31,7 +31,7 @@
 	},
 	"dependencies": {
 		"@somethings/telegram-bot-api": "^4.7.0",
-		"puppeteer-core": "^16.2.0"
+		"puppeteer": "^16.2.0"
 	},
 	"scripts": {
 		"lint": "eslint .",
