@@ -80,7 +80,8 @@
 						"leadingUnderscore": "forbid",
 						"trailingUnderscore": "forbid"
 					}
-				]
+				],
+				"@typescript-eslint/no-empty-interface": ["off"]
 			}
 		}
 	]

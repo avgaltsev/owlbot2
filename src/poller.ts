@@ -1,20 +1,12 @@
 import {EventEmitter} from "stream";
+
 import {launch, Browser} from "puppeteer";
 
 import {PollerConfig} from "./config";
-import {getResponseField, isResponseFields, requestJson, ResponseFields, ResponseFieldValue} from "./request-json";
+import {Json, JsonObject, isJsonObject, getJsonValue} from "./json";
+import {requestJson} from "./request-json";
 
 import * as settings from "./json/settings.json";
-import * as pollRequestPayload from "./json/poll-request-payload.json";
-
-const INJECTED_CODE = `
-	(function () {
-		return {
-			apiKey: ytcfg.data_.INNERTUBE_API_KEY,
-			channelId: ytInitialData.metadata.channelMetadataRenderer.externalId,
-		};
-	})();
-`;
 
 interface TemplateValues {
 	[name: string]: string;
@@ -26,10 +18,21 @@ function expandTemplate(template: string, values: TemplateValues): string {
 	}, template);
 }
 
-interface Session extends TemplateValues {
+interface Session {
 	apiKey: string;
+	context: JsonObject;
 	channelId: string;
 }
+
+const GET_SESSION = `
+	(function () {
+		return {
+			apiKey: ytcfg.data_.INNERTUBE_API_KEY,
+			context: ytcfg.data_.INNERTUBE_CONTEXT,
+			channelId: ytInitialData.metadata.channelMetadataRenderer.externalId,
+		};
+	})();
+`;
 
 interface LiveStream {
 	id: string;
@@ -135,11 +138,13 @@ export class Poller{
 		const browser = await this.getBrowser();
 		const page = await browser.newPage();
 
-		const url = this.expandTemplateWithLocalValues(settings.channelUrl);
+		const url = expandTemplate(settings.channelUrl, {
+			channelName: this.config.channelName,
+		});
 
 		await page.goto(url);
 
-		const session = await page.evaluate(INJECTED_CODE) as Session;
+		const session = await page.evaluate(GET_SESSION) as Session;
 
 		page.close();
 
@@ -149,7 +154,7 @@ export class Poller{
 	private async poll(): Promise<void> {
 		this.emitter.emit("poll");
 
-		let pollResponse: ResponseFields;
+		let pollResponse: Json;
 
 		try {
 			pollResponse = await this.request();
@@ -163,13 +168,13 @@ export class Poller{
 			return;
 		}
 
-		const liveStreamResponse = this.getLiveStreamResponse(pollResponse);
+		const liveStreamData = this.extractLiveStreamData(pollResponse);
 
-		if (liveStreamResponse !== null) {
+		if (isJsonObject(liveStreamData)) {
 			const newLiveStream: LiveStream = {
-				id: String(getResponseField(liveStreamResponse, ["videoId"])),
-				title: String(getResponseField(liveStreamResponse, ["title", "runs", 0, "text"])),
-				url: String(getResponseField(liveStreamResponse, ["navigationEndpoint", "commandMetadata", "webCommandMetadata", "url"])),
+				id: String(getJsonValue(liveStreamData, ["videoId"])),
+				title: String(getJsonValue(liveStreamData, ["title", "runs", 0, "text"])),
+				url: String(getJsonValue(liveStreamData, ["navigationEndpoint", "commandMetadata", "webCommandMetadata", "url"])),
 			};
 
 			if (this.liveStream !== null) {
@@ -199,80 +204,55 @@ export class Poller{
 		}
 	}
 
-	private async request(): Promise<ResponseFields> {
-		const path = await this.expandTemplate(settings.apiPath);
-		const requestPayload = await this.expandPollRequestPayload();
+	private async request(): Promise<Json> {
+		const session = await this.getSession();
 
-		return requestJson({
+		const path = expandTemplate(settings.apiPath, {
+			apiKey: session.apiKey,
+		});
+
+		const requestParameters = {
 			host: settings.apiHost,
 			path,
 			method: "POST",
-		}, requestPayload);
+		};
+
+		const requestPayload = {
+			context: session.context,
+			browseId: session.channelId,
+			params: settings.apiParams,
+		};
+
+		return requestJson(requestParameters, requestPayload);
 	}
 
-	private getLiveStreamResponse(pollResponse: ResponseFields): ResponseFields | null {
-		const tabs = getResponseField(pollResponse, ["contents", "twoColumnBrowseResultsRenderer", "tabs"]);
+	private extractLiveStreamData(pollResponse: Json): Json {
+		const tabs = getJsonValue(pollResponse, ["contents", "twoColumnBrowseResultsRenderer", "tabs"]);
 
 		const tab = (Array.isArray(tabs) ? tabs : []).find((tab) => { // lint shadowed variable
-			const selected = getResponseField(tab, ["tabRenderer", "selected"]);
+			const selected = getJsonValue(tab, ["tabRenderer", "selected"]);
 
 			return selected !== null && selected !== undefined && selected;
 		});
 
-		const tabRenderer = getResponseField(tab, ["tabRenderer"]);
-		const sectionListRenderer = getResponseField(tabRenderer, ["content", "sectionListRenderer"]);
-		const itemSectionRenderer = getResponseField(sectionListRenderer, ["contents", 0, "itemSectionRenderer"]);
-		const gridRenderer = getResponseField(itemSectionRenderer, ["contents", 0, "gridRenderer"]);
-		const gridVideoRenderer = getResponseField(gridRenderer, ["items", 0, "gridVideoRenderer"]);
+		const tabRenderer = getJsonValue(tab, ["tabRenderer"]);
+		const sectionListRenderer = getJsonValue(tabRenderer, ["content", "sectionListRenderer"]);
+		const itemSectionRenderer = getJsonValue(sectionListRenderer, ["contents", 0, "itemSectionRenderer"]);
+		const gridRenderer = getJsonValue(itemSectionRenderer, ["contents", 0, "gridRenderer"]);
+		const gridVideoRenderer = getJsonValue(gridRenderer, ["items", 0, "gridVideoRenderer"]);
 
-		const thumbnailOverlays = getResponseField(gridVideoRenderer, ["thumbnailOverlays"]);
+		const thumbnailOverlays = getJsonValue(gridVideoRenderer, ["thumbnailOverlays"]);
 
-		const liveOverlay = (Array.isArray(thumbnailOverlays) ? thumbnailOverlays : []).find((overlay: ResponseFieldValue) => {
-			const style = getResponseField(overlay, ["thumbnailOverlayTimeStatusRenderer", "style"]);
+		const liveOverlay = (Array.isArray(thumbnailOverlays) ? thumbnailOverlays : []).find((overlay) => {
+			const style = getJsonValue(overlay, ["thumbnailOverlayTimeStatusRenderer", "style"]);
 
 			return style === "LIVE";
 		});
 
-		if (liveOverlay !== undefined && isResponseFields(gridVideoRenderer)) {
+		if (liveOverlay !== undefined && gridVideoRenderer !== undefined) {
 			return gridVideoRenderer;
 		}
 
 		return null;
-	}
-
-	private async expandPollRequestPayload(): Promise<typeof pollRequestPayload> {
-		const originalUrl = await this.expandTemplate(pollRequestPayload.context.client.originalUrl);
-		const graftUrl = await this.expandTemplate(pollRequestPayload.context.client.mainAppWebInfo.graftUrl);
-		const browseId = await this.expandTemplate(pollRequestPayload.browseId);
-		const params = await this.expandTemplate(pollRequestPayload.params);
-
-		return {
-			...pollRequestPayload,
-			context: {
-				...pollRequestPayload.context,
-				client: {
-					...pollRequestPayload.context.client,
-					originalUrl,
-					mainAppWebInfo: {
-						...pollRequestPayload.context.client.mainAppWebInfo,
-						graftUrl,
-					},
-				},
-			},
-			browseId,
-			params,
-		};
-	}
-
-	private expandTemplateWithLocalValues(template: string): string {
-		return expandTemplate(template, this.config.templateValues);
-	}
-
-	private async expandTemplate(template: string): Promise<string> {
-		const session = await this.getSession();
-
-		const templateWithLocalValues = this.expandTemplateWithLocalValues(template);
-
-		return expandTemplate(templateWithLocalValues, session);
 	}
 }

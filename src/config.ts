@@ -1,5 +1,7 @@
+import * as path from "path";
 import {readFile} from "fs/promises";
-import path = require("path");
+
+import {JsonObject, isJsonObject} from "./json-object";
 
 import * as defaultConfig from "./json/default-config.json";
 
@@ -7,33 +9,34 @@ export type Config = typeof defaultConfig;
 export type PollerConfig = typeof defaultConfig.poller;
 export type BotConfig = typeof defaultConfig.bot;
 
-export interface ConfigProperties {
-	[name: string]: ConfigProperties | string | number | boolean | null | Array<ConfigProperties | string | number | boolean | null>;
-}
+function mergeConfigs<T extends JsonObject, K extends keyof T>(baseConfig: T, overrideConfig: JsonObject): T {
+	const properties = Object.keys(baseConfig) as Array<K>;
 
-export type ConfigPropertyName = keyof ConfigProperties;
-export type ConfigPropertyValue = ConfigProperties[ConfigPropertyName];
+	return properties.reduce((result, property) => {
+		// Typescript bug: baseValue infers correct type here (T[K], or Json),
+		// but when I try use it somewhere it thinks it's Json | undefined.
+		// If I specify the type explicitly, it works fine.
+		const baseValue: T[K] = baseConfig[property];
+		const overrideValue = overrideConfig[property as string];
 
-function isConfigProperties<T extends ConfigProperties>(value: ConfigPropertyValue | undefined): value is T {
-	return value !== null && typeof value === "object";
-}
-
-function mergeConfigs<T extends ConfigProperties, K extends keyof T>(baseConfig: T, override: ConfigProperties): T {
-	return Object.entries(baseConfig).reduce((result, [baseName, baseValue]) => {
-		if (isConfigProperties(baseValue)) {
-			const overrideValue = override[baseName];
-
-			if (isConfigProperties(overrideValue)) {
-				result[baseName as K] = mergeConfigs(baseValue, overrideValue) as T[K];
+		if (isJsonObject(baseValue)) {
+			if (overrideValue === undefined) {
+				result[property] = baseValue;
+			} else if (isJsonObject(overrideValue)) {
+				result[property] = mergeConfigs(baseValue, overrideValue);
 			} else {
-				result[baseName as K] = baseValue as T[K];
+				result[property] = baseValue;
 			}
 		} else {
-			result[baseName as K] = (override[baseName] ?? baseValue) as T[K];
+			if (typeof overrideValue === typeof result[property]) {
+				result[property] = overrideValue as T[K];
+			} else {
+				result[property] = baseValue;
+			}
 		}
 
 		return result;
-	}, {} as T);
+	}, {...baseConfig});
 }
 
 const CONFIG_PATH = path.resolve(__dirname, "../config/config.json");

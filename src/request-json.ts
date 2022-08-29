@@ -1,4 +1,6 @@
-import {request, Agent} from "https";
+import {Agent, request} from "https";
+
+import {Json, JsonObject} from "./json";
 
 export interface RequestParameters {
 	host: string;
@@ -6,38 +8,9 @@ export interface RequestParameters {
 	method: string;
 }
 
-export interface RequestPayload {
-	[name: string]: RequestPayload | string | number | boolean | null | Array<RequestPayload | string | number | boolean | null>;
-}
-
-export interface ResponseFields {
-	[name: string]: ResponseFields | string | number | boolean | null | Array<ResponseFields | string | number | boolean | null>;
-}
-
-export type ResponseFieldName = keyof ResponseFields;
-export type ResponseFieldValue = ResponseFields[ResponseFieldName];
-
-export function isResponseFields<T extends ResponseFields>(value: ResponseFieldValue | undefined): value is T {
-	return value !== null && typeof value === "object";
-}
-
-export function getResponseField(response: ResponseFieldValue | undefined, path: Array<string | number>): ResponseFieldValue | undefined {
-	if (!isResponseFields(response)) {
-		return undefined;
-	}
-
-	return path.reduce<ResponseFieldValue | undefined>((result, fieldName) => {
-		if (!isResponseFields(result)) {
-			return undefined;
-		}
-
-		return result[fieldName];
-	}, response);
-}
-
-export function requestJson(parameters: RequestParameters, payload?: RequestPayload): Promise<ResponseFields> {
-	return new Promise<ResponseFields>((resolve, reject) => {
-		const pollRequest = request({
+export function requestJson(parameters: RequestParameters, payload?: JsonObject): Promise<Json> {
+	return new Promise<Json>((resolve, reject) => {
+		const clientRequest = request({
 			...parameters,
 			agent: new Agent({keepAlive: true}),
 		}, (response) => {
@@ -54,14 +27,14 @@ export function requestJson(parameters: RequestParameters, payload?: RequestPayl
 			});
 		});
 
-		pollRequest.on("error", (err) => {
+		clientRequest.on("error", (err) => {
 			reject(err);
 		});
 
 		if (payload !== undefined) {
-			pollRequest.write(JSON.stringify(payload));
+			clientRequest.write(JSON.stringify(payload));
 		}
 
-		pollRequest.end();
+		clientRequest.end();
 	});
 }

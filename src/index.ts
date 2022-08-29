@@ -1,5 +1,5 @@
-import {Bot} from "./bot";
 import {getConfig} from "./config";
+import {Bot} from "./bot";
 import {Poller} from "./poller";
 
 export async function main(): Promise<void> {

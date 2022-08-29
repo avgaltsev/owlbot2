@@ -1,6 +1,7 @@
-import {BotConfig} from "./config";
 import Api from "@somethings/telegram-bot-api/Api";
 import {SendPhotoParameters} from "@somethings/telegram-bot-api/AbstractApi";
+
+import {BotConfig} from "./config";
 
 export class Bot {
 	private api: Api;
