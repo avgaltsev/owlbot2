@@ -135,7 +135,10 @@ export class Poller{
 	}
 
 	private async createBrowser(): Promise<Browser> {
-		return launch();
+		return launch({
+			headless: true,
+			args: ["--no-sandbox"],
+		});
 	}
 
 	private getSession(): Promise<Session> {
