@@ -52,7 +52,7 @@ export async function main(): Promise<void> {
 		reportStatus(`Live stream switched: from ${parameters.oldLiveStream.title} to ${parameters.newLiveStream.title}`);
 	});
 
-	poller.on("liveStreamSwitch", (parameters) => {
+	poller.on("liveStreamUpdate", (parameters) => {
 		logStatus("Live stream updated", parameters);
 		reportStatus(`Live stream updated: from ${parameters.oldLiveStream.title} to ${parameters.newLiveStream.title}`);
 	});
