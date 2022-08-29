@@ -8,19 +8,35 @@ export async function main(): Promise<void> {
 	const bot = new Bot(config.bot);
 	const poller = new Poller(config.poller);
 
-	poller.on("start", () => {
-		bot.sendMessage("Polling started");
+	poller.on("start", (parameters) => {
+		console.log("Polling started", parameters);
+		// bot.sendMessage("Polling started");
 	});
 
-	poller.on("liveStart", (liveStream) => {
-		bot.sendMessage(`Live stream found: ${liveStream.title}`);
+	poller.on("poll", () => {
+		console.log("Polling");
 	});
 
-	poller.on("liveSwitch", (oldLiveStream, newLiveStream) => {
-		bot.sendMessage(`Live stream switched: from ${oldLiveStream.title} to ${newLiveStream.title}`);
+	poller.on("pollSuccess", () => {
+		console.log("Polling OK");
 	});
 
-	poller.on("liveEnd", (liveStream) => {
-		bot.sendMessage(`Live stream ended: ${liveStream.title}`);
+	poller.on("pollFail", (parameters) => {
+		console.log("Polling FAIL", parameters);
+	});
+
+	poller.on("liveStreamStart", (parameters) => {
+		console.log("Live stream found", parameters);
+		// bot.sendMessage(`Live stream found: ${parameters.liveStream.title}`);
+	});
+
+	poller.on("liveStreamSwitch", (parameters) => {
+		console.log("Live stream switched", parameters);
+		bot.sendMessage(`Live stream switched: from ${parameters.oldLiveStream.title} to ${parameters.newLiveStream.title}`);
+	});
+
+	poller.on("liveStreamEnd", (parameters) => {
+		console.log("Live stream ended", parameters);
+		bot.sendMessage(`Live stream ended: ${parameters.liveStream.title}`);
 	});
 }

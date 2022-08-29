@@ -8,7 +8,7 @@ export type PollerConfig = typeof defaultConfig.poller;
 export type BotConfig = typeof defaultConfig.bot;
 
 export interface ConfigProperties {
-	[key: string]: ConfigProperties | string | number | boolean | null;
+	[name: string]: ConfigProperties | string | number | boolean | null | Array<ConfigProperties | string | number | boolean | null>;
 }
 
 export type ConfigPropertyName = keyof ConfigProperties;

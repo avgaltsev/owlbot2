@@ -1,10 +1,20 @@
-import {PollerConfig} from "./config";
-import {launch, Browser} from "puppeteer";
 import {EventEmitter} from "stream";
-import {request, Agent} from "https";
+import {launch, Browser} from "puppeteer";
+
+import {PollerConfig} from "./config";
+import {getResponseField, isResponseFields, requestJson, ResponseFields, ResponseFieldValue} from "./request-json";
 
 import * as settings from "./json/settings.json";
 import * as pollRequestPayload from "./json/poll-request-payload.json";
+
+const INJECTED_CODE = `
+	(function () {
+		return {
+			apiKey: ytcfg.data_.INNERTUBE_API_KEY,
+			channelId: ytInitialData.metadata.channelMetadataRenderer.externalId,
+		};
+	})();
+`;
 
 interface TemplateValues {
 	[name: string]: string;
@@ -27,20 +37,32 @@ interface LiveStream {
 	url: string;
 }
 
-const INJECTED_CODE = `
-	(function () {
-		return {
-			apiKey: ytcfg.data_.INNERTUBE_API_KEY,
-			channelId: ytInitialData.metadata.channelMetadataRenderer.externalId,
-		};
-	})();
-`;
-
 interface PollerEvents {
-	start: () => void;
-	liveStart: (liveStream: LiveStream) => void;
-	liveSwitch: (oldLiveStream: LiveStream, newLiveStream: LiveStream) => void;
-	liveEnd: (liveStream: LiveStream) => void;
+	start: (parameters: {
+		pollInterval: number;
+	}) => void;
+
+	poll: () => void;
+
+	pollSuccess: () => void;
+
+	pollFail: (parameters: {
+		error: string;
+	}) => void;
+
+	liveStreamStart: (parameters: {
+		liveStream: LiveStream;
+	}) => void;
+
+	liveStreamSwitch: (parameters: {
+		oldLiveStream: LiveStream;
+		newLiveStream: LiveStream;
+
+	}) => void;
+
+	liveStreamEnd: (parameters: {
+		liveStream: LiveStream;
+	}) => void;
 }
 
 interface PollerEventEmitter {
@@ -55,11 +77,7 @@ interface PollerEventEmitter {
 class PollerEventEmitter extends EventEmitter {
 }
 
-interface PollerEmitter {
-	on<T extends keyof PollerEvents>(eventName: T, listener: PollerEvents[T]): void;
-}
-
-export class Poller implements PollerEmitter {
+export class Poller{
 	private emitter = new PollerEventEmitter();
 
 	private browserPromise: Promise<Browser> | null = null;
@@ -80,7 +98,9 @@ export class Poller implements PollerEmitter {
 	}
 
 	private async start(): Promise<void> {
-		this.emitter.emit("start");
+		this.emitter.emit("start", {
+			pollInterval: this.config.pollInterval,
+		});
 
 		setImmediate(() => {
 			this.poll();
@@ -115,7 +135,7 @@ export class Poller implements PollerEmitter {
 		const browser = await this.getBrowser();
 		const page = await browser.newPage();
 
-		const url = await this.expandTemplateWithLocalValues(settings.channelUrl);
+		const url = this.expandTemplateWithLocalValues(settings.channelUrl);
 
 		await page.goto(url);
 
@@ -127,15 +147,29 @@ export class Poller implements PollerEmitter {
 	}
 
 	private async poll(): Promise<void> {
-		const pollResponse = await this.request();
+		this.emitter.emit("poll");
+
+		let pollResponse: ResponseFields;
+
+		try {
+			pollResponse = await this.request();
+
+			this.emitter.emit("pollSuccess");
+		} catch(error) {
+			this.emitter.emit("pollFail", {
+				error: error as string,
+			});
+
+			return;
+		}
 
 		const liveStreamResponse = this.getLiveStreamResponse(pollResponse);
 
 		if (liveStreamResponse !== null) {
 			const newLiveStream: LiveStream = {
-				id: liveStreamResponse?.videoId,
-				title: liveStreamResponse?.title?.runs?.[0]?.text,
-				url: liveStreamResponse?.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url,
+				id: String(getResponseField(liveStreamResponse, ["videoId"])),
+				title: String(getResponseField(liveStreamResponse, ["title", "runs", 0, "text"])),
+				url: String(getResponseField(liveStreamResponse, ["navigationEndpoint", "commandMetadata", "webCommandMetadata", "url"])),
 			};
 
 			if (this.liveStream !== null) {
@@ -143,75 +177,67 @@ export class Poller implements PollerEmitter {
 					return;
 				}
 
-				this.emitter.emit("liveSwitch", this.liveStream, newLiveStream);
+				this.emitter.emit("liveStreamSwitch", {
+					oldLiveStream: this.liveStream,
+					newLiveStream: newLiveStream,
+				});
 			} else {
-				this.emitter.emit("liveStart", newLiveStream);
+				this.emitter.emit("liveStreamStart", {
+					liveStream: newLiveStream,
+				});
 			}
 
 			this.liveStream = newLiveStream;
 		} else {
 			if (this.liveStream !== null) {
-				this.emitter.emit("liveEnd", this.liveStream);
+				this.emitter.emit("liveStreamEnd", {
+					liveStream: this.liveStream,
+				});
 			}
 
 			this.liveStream = null;
 		}
 	}
 
-	private async request(): Promise<unknown> {
+	private async request(): Promise<ResponseFields> {
 		const path = await this.expandTemplate(settings.apiPath);
 		const requestPayload = await this.expandPollRequestPayload();
 
-		return new Promise<unknown>((resolve, reject) => {
-			const pollRequest = request({
-				host: settings.apiHost,
-				path,
-				method: "POST",
-				agent: new Agent({keepAlive: true}),
-			}, (response) => {
-				response.setEncoding("utf8");
-
-				let data = "";
-
-				response.on("data", (chunk) => {
-					data += chunk;
-				});
-
-				response.on("end", () => {
-					resolve(JSON.parse(data));
-				});
-			});
-
-			pollRequest.on("error", (err) => {
-				reject(err);
-			});
-
-			pollRequest.write(JSON.stringify(requestPayload));
-
-			pollRequest.end();
-		});
+		return requestJson({
+			host: settings.apiHost,
+			path,
+			method: "POST",
+		}, requestPayload);
 	}
 
-	private getLiveStreamResponse(pollResponse: any): any | null {
-		const tabs = pollResponse.contents.twoColumnBrowseResultsRenderer.tabs as Array<any>;
+	private getLiveStreamResponse(pollResponse: ResponseFields): ResponseFields | null {
+		const tabs = getResponseField(pollResponse, ["contents", "twoColumnBrowseResultsRenderer", "tabs"]);
 
-		const tab = tabs.find((tab) => { // lint shadowed variable
-			return tab?.tabRenderer?.selected;
+		const tab = (Array.isArray(tabs) ? tabs : []).find((tab) => { // lint shadowed variable
+			const selected = getResponseField(tab, ["tabRenderer", "selected"]);
+
+			return selected !== null && selected !== undefined && selected;
 		});
 
-		const tabRenderer = tab?.tabRenderer;
-		const sectionListRenderer = tabRenderer?.content?.sectionListRenderer;
-		const itemSectionRenderer = sectionListRenderer?.contents?.[0]?.itemSectionRenderer;
-		const gridRenderer = itemSectionRenderer?.contents?.[0]?.gridRenderer;
-		const gridVideoRenderer = gridRenderer?.items?.[0]?.gridVideoRenderer;
+		const tabRenderer = getResponseField(tab, ["tabRenderer"]);
+		const sectionListRenderer = getResponseField(tabRenderer, ["content", "sectionListRenderer"]);
+		const itemSectionRenderer = getResponseField(sectionListRenderer, ["contents", 0, "itemSectionRenderer"]);
+		const gridRenderer = getResponseField(itemSectionRenderer, ["contents", 0, "gridRenderer"]);
+		const gridVideoRenderer = getResponseField(gridRenderer, ["items", 0, "gridVideoRenderer"]);
 
-		const thumbnailOverlays = gridVideoRenderer?.thumbnailOverlays ?? [];
+		const thumbnailOverlays = getResponseField(gridVideoRenderer, ["thumbnailOverlays"]);
 
-		const liveOverlay = thumbnailOverlays.find((overlay: any) => {
-			return overlay?.thumbnailOverlayTimeStatusRenderer?.style === "LIVE";
+		const liveOverlay = (Array.isArray(thumbnailOverlays) ? thumbnailOverlays : []).find((overlay: ResponseFieldValue) => {
+			const style = getResponseField(overlay, ["thumbnailOverlayTimeStatusRenderer", "style"]);
+
+			return style === "LIVE";
 		});
 
-		return liveOverlay !== undefined ? gridVideoRenderer : null;
+		if (liveOverlay !== undefined && isResponseFields(gridVideoRenderer)) {
+			return gridVideoRenderer;
+		}
+
+		return null;
 	}
 
 	private async expandPollRequestPayload(): Promise<typeof pollRequestPayload> {
