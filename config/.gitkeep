@@ -1,0 +1,9 @@
+{
+	"poller": {
+		"channelName": "CurrenttimeTvofficial"
+	},
+	"bot": {
+		"token": "128393783:AAG4cqn5D_364HC3t4my__zdqpmhgvR1cSA",
+		"chatId": "-1001460799689"
+	}
+}
