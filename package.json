@@ -38,6 +38,6 @@
 		"build": "tsc --skipLibCheck",
 		"watch": "tsc --skipLibCheck --watch",
 		"prepare": "npm run lint && npm run build",
-		"start": "./bin/owlbot"
+		"start": "./bin/owlbot2"
 	}
 }
