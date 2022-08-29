@@ -10,7 +10,7 @@ export async function main(): Promise<void> {
 
 	poller.on("start", (parameters) => {
 		console.log("Polling started", parameters);
-		// bot.sendMessage("Polling started");
+		bot.sendMessage("Polling started");
 	});
 
 	poller.on("poll", () => {
@@ -23,16 +23,22 @@ export async function main(): Promise<void> {
 
 	poller.on("pollFail", (parameters) => {
 		console.log("Polling FAIL", parameters);
+		bot.sendMessage(`Polling FAIL: ${parameters.error}`);
 	});
 
 	poller.on("liveStreamStart", (parameters) => {
 		console.log("Live stream found", parameters);
-		// bot.sendMessage(`Live stream found: ${parameters.liveStream.title}`);
+		bot.sendMessage(`Live stream found: ${parameters.liveStream.title}`);
 	});
 
 	poller.on("liveStreamSwitch", (parameters) => {
 		console.log("Live stream switched", parameters);
 		bot.sendMessage(`Live stream switched: from ${parameters.oldLiveStream.title} to ${parameters.newLiveStream.title}`);
+	});
+
+	poller.on("liveStreamSwitch", (parameters) => {
+		console.log("Live stream updated", parameters);
+		bot.sendMessage(`Live stream updated: from ${parameters.oldLiveStream.title} to ${parameters.newLiveStream.title}`);
 	});
 
 	poller.on("liveStreamEnd", (parameters) => {

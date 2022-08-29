@@ -63,6 +63,12 @@ interface PollerEvents {
 
 	}) => void;
 
+	liveStreamUpdate: (parameters: {
+		oldLiveStream: LiveStream;
+		newLiveStream: LiveStream;
+
+	}) => void;
+
 	liveStreamEnd: (parameters: {
 		liveStream: LiveStream;
 	}) => void;
@@ -178,14 +184,17 @@ export class Poller{
 			};
 
 			if (this.liveStream !== null) {
-				if (this.liveStream.id === newLiveStream.id) {
-					return;
+				if (this.liveStream.id !== newLiveStream.id) {
+					this.emitter.emit("liveStreamSwitch", {
+						oldLiveStream: this.liveStream,
+						newLiveStream: newLiveStream,
+					});
+				} else if (this.liveStream.title !== newLiveStream.title) {
+					this.emitter.emit("liveStreamUpdate", {
+						oldLiveStream: this.liveStream,
+						newLiveStream: newLiveStream,
+					});
 				}
-
-				this.emitter.emit("liveStreamSwitch", {
-					oldLiveStream: this.liveStream,
-					newLiveStream: newLiveStream,
-				});
 			} else {
 				this.emitter.emit("liveStreamStart", {
 					liveStream: newLiveStream,
