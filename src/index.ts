@@ -8,41 +8,57 @@ export async function main(): Promise<void> {
 	const bot = new Bot(config.bot);
 	const poller = new Poller(config.poller);
 
+	function logStatus(message: string, ...args: Array<unknown>): void {
+		console.log(message, ...args);
+	}
+
+	function reportStatus(message: string): void {
+		if (config.useBot) {
+			bot.sendMessage(message);
+		}
+	}
+
+	// TODO: Add errors handling.
+	poller.on("error", (parameters) => {
+		logStatus("Poller error", parameters);
+		reportStatus(`Poller error: ${parameters.error}`);
+	});
+
 	poller.on("start", (parameters) => {
-		console.log("Polling started", parameters);
-		bot.sendMessage("Polling started");
+		logStatus("Poller started", parameters);
+		reportStatus("Poller started");
 	});
 
 	poller.on("poll", () => {
-		console.log("Polling");
+		logStatus("Polling");
 	});
 
 	poller.on("pollSuccess", () => {
-		console.log("Polling OK");
+		logStatus("Polling OK");
 	});
 
-	poller.on("pollFail", (parameters) => {
-		console.log("Polling FAIL", parameters);
-		bot.sendMessage(`Polling FAIL: ${parameters.error}`);
+	poller.on("pollError", (parameters) => {
+		logStatus("Polling error", parameters);
+		reportStatus(`Polling error: ${parameters.error}`);
 	});
 
 	poller.on("liveStreamStart", (parameters) => {
-		console.log("Live stream found", parameters);
-		bot.sendMessage(`Live stream found: ${parameters.liveStream.title}`);
+		logStatus("Live stream found", parameters);
+		reportStatus(`Live stream found: ${parameters.liveStream.title}`);
 	});
 
 	poller.on("liveStreamSwitch", (parameters) => {
-		console.log("Live stream switched", parameters);
-		bot.sendMessage(`Live stream switched: from ${parameters.oldLiveStream.title} to ${parameters.newLiveStream.title}`);
+		logStatus("Live stream switched", parameters);
+		reportStatus(`Live stream switched: from ${parameters.oldLiveStream.title} to ${parameters.newLiveStream.title}`);
 	});
 
 	poller.on("liveStreamSwitch", (parameters) => {
-		console.log("Live stream updated", parameters);
-		bot.sendMessage(`Live stream updated: from ${parameters.oldLiveStream.title} to ${parameters.newLiveStream.title}`);
+		logStatus("Live stream updated", parameters);
+		reportStatus(`Live stream updated: from ${parameters.oldLiveStream.title} to ${parameters.newLiveStream.title}`);
 	});
 
 	poller.on("liveStreamEnd", (parameters) => {
-		console.log("Live stream ended", parameters);
-		bot.sendMessage(`Live stream ended: ${parameters.liveStream.title}`);
+		logStatus("Live stream ended", parameters);
+		reportStatus(`Live stream ended: ${parameters.liveStream.title}`);
 	});
 }

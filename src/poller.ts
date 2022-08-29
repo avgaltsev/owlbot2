@@ -41,15 +41,20 @@ interface LiveStream {
 }
 
 interface PollerEvents {
+	error: (parameters: {
+		error: string;
+	}) => void;
+
 	start: (parameters: {
-		pollInterval: number;
+		settings: typeof settings;
+		config: PollerConfig;
 	}) => void;
 
 	poll: () => void;
 
 	pollSuccess: () => void;
 
-	pollFail: (parameters: {
+	pollError: (parameters: {
 		error: string;
 	}) => void;
 
@@ -108,7 +113,8 @@ export class Poller{
 
 	private async start(): Promise<void> {
 		this.emitter.emit("start", {
-			pollInterval: this.config.pollInterval,
+			settings,
+			config: this.config,
 		});
 
 		setImmediate(() => {
@@ -167,7 +173,7 @@ export class Poller{
 
 			this.emitter.emit("pollSuccess");
 		} catch(error) {
-			this.emitter.emit("pollFail", {
+			this.emitter.emit("pollError", {
 				error: error as string,
 			});
 

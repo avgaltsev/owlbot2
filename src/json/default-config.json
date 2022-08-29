@@ -1,4 +1,5 @@
 {
+	"useBot": false,
 	"poller": {
 		"channelName": "overwatchleague",
 		"pollInterval": 300000
