@@ -1,5 +1,3 @@
-import {EventEmitter} from "stream";
-
 import {launch, Browser} from "puppeteer";
 
 import {PollerConfig} from "./config";
@@ -7,6 +5,7 @@ import {Json, JsonObject, isJsonObject, getJsonValue} from "./json";
 import {requestJson} from "./request-json";
 
 import * as settings from "./json/settings.json";
+import {Emitter} from "./emitter";
 
 interface TemplateValues {
 	[name: string]: string;
@@ -79,20 +78,8 @@ interface PollerEvents {
 	}) => void;
 }
 
-interface PollerEventEmitter {
-	addListener<T extends keyof PollerEvents>(eventName: T, listener: PollerEvents[T]): this;
-	removeListener<T extends keyof PollerEvents>(eventName: T, listener: PollerEvents[T]): this;
-	on<T extends keyof PollerEvents>(eventName: T, listener: PollerEvents[T]): this;
-	once<T extends keyof PollerEvents>(eventName: T, listener: PollerEvents[T]): this;
-	off<T extends keyof PollerEvents>(eventName: T, listener: PollerEvents[T]): this;
-	emit<T extends keyof PollerEvents>(eventName: T, ...args: Parameters<PollerEvents[T]>): boolean;
-}
-
-class PollerEventEmitter extends EventEmitter {
-}
-
 export class Poller{
-	private emitter = new PollerEventEmitter();
+	private emitter = new Emitter<PollerEvents>();
 
 	private browserPromise: Promise<Browser> | null = null;
 	private sessionPromise: Promise<Session> | null = null;

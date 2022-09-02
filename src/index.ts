@@ -9,7 +9,7 @@ export async function main(): Promise<void> {
 	const poller = new Poller(config.poller);
 
 	function logStatus(message: string, ...args: Array<unknown>): void {
-		console.log(message, ...args);
+		console.log(new Date(), message, ...args);
 	}
 
 	function reportStatus(message: string): void {
