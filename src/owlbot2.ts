@@ -97,7 +97,7 @@ export class OwlBot2 {
 
 		this.interval = setInterval(() => {
 			this.pingStreams();
-		});
+		}, 1000 * 60 * 10);
 	}
 
 	private async pingStreams(): Promise<void> {
