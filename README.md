@@ -43,7 +43,7 @@ Copy `src/json/default-config.json` to `config.json` inside the volume `owlbot2-
 Start the container.
 
 ```bash
-docker run -d --name owlbot2 --restart always --net=host -v owlbot2-config:/root/config/ avgaltsev/owlbot2:0.0.0
+docker run -d --name=owlbot2 --restart=unless-stopped --net=host -v owlbot2-config:/root/config/ avgaltsev/owlbot2:0.0.0
 ```
 
 Updating config.

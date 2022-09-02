@@ -1,6 +1,6 @@
 import * as path from "path";
 import {readFile} from "fs/promises";
-
+// import {JsonArray, isJsonArray} from "./json-array";
 import {JsonObject, isJsonObject} from "./json-object";
 
 import * as defaultConfig from "./json/default-config.json";
@@ -9,6 +9,10 @@ export type Config = typeof defaultConfig;
 export type BotConfig = typeof defaultConfig.bot;
 export type PollerConfig = typeof defaultConfig.poller;
 export type StreamConfig = typeof defaultConfig.streams[0];
+
+// function mergeArrays(baseArray: JsonArray, overrideArray: JsonArray): JsonArray {
+// 	return baseArray;
+// }
 
 function mergeConfigs<T extends JsonObject, K extends keyof T>(baseConfig: T, overrideConfig: JsonObject): T {
 	const properties = Object.keys(baseConfig) as Array<K>;
@@ -20,6 +24,14 @@ function mergeConfigs<T extends JsonObject, K extends keyof T>(baseConfig: T, ov
 		const baseValue: T[K] = baseConfig[property];
 		const overrideValue = overrideConfig[property as string];
 
+		// if (overrideValue === undefined) {
+		// 	result[property] = baseValue;
+		// } else if (isJsonArray(baseValue) && isJsonArray(overrideValue)) {
+		// 	result[property] = mergeArrays(baseValue, overrideValue) as T[K];
+		// } else if (isJsonObject(baseValue) && isJsonObject(overrideValue)) {
+		// 	result[property] = mergeConfigs(baseValue, overrideValue);
+		// }
+
 		if (isJsonObject(baseValue)) {
 			if (overrideValue === undefined) {
 				result[property] = baseValue;
@@ -29,7 +41,7 @@ function mergeConfigs<T extends JsonObject, K extends keyof T>(baseConfig: T, ov
 				result[property] = baseValue;
 			}
 		} else {
-			if (typeof overrideValue === typeof result[property]) {
+			if (typeof baseValue === typeof overrideValue) {
 				result[property] = overrideValue as T[K];
 			} else {
 				result[property] = baseValue;

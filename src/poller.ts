@@ -97,7 +97,7 @@ export class Poller{
 		this.emitter.on(eventName, listener);
 	}
 
-	private async start(): Promise<void> {
+	private start(): void {
 		this.emitter.emit("start", {
 			settings,
 			config: this.config,

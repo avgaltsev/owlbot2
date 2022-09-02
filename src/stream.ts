@@ -21,6 +21,8 @@ export class Stream {
 				height: 600,
 			},
 		}).then((browser) => browser.pages()).then((pages) => pages[0]);
+
+		// TODO: Catch error.
 	}
 
 	private async getScreenshot(page: Page): Promise<Buffer> {

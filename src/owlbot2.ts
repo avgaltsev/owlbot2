@@ -18,6 +18,7 @@ export class OwlBot2 {
 		this.browser = new Chromium();
 		this.bot = new Bot(config.bot);
 		this.poller = new Poller(config.poller, this.browser);
+
 		this.streams = config.streams.map((streamConfig) => new Stream(streamConfig));
 
 		// TODO: Add errors handling.
