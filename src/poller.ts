@@ -1,11 +1,10 @@
-import {launch, Browser} from "puppeteer";
-
 import {PollerConfig} from "./config";
 import {Json, JsonObject, isJsonObject, getJsonValue} from "./json";
 import {requestJson} from "./request-json";
 
 import * as settings from "./json/settings.json";
 import {Emitter} from "./emitter";
+import {Chromium} from "./chromium";
 
 interface TemplateValues {
 	[name: string]: string;
@@ -81,13 +80,13 @@ interface PollerEvents {
 export class Poller{
 	private emitter = new Emitter<PollerEvents>();
 
-	private browserPromise: Promise<Browser> | null = null;
 	private sessionPromise: Promise<Session> | null = null;
 
 	private liveStream: LiveStream | null = null;
 
 	public constructor(
 		private config: PollerConfig,
+		private browser: Chromium,
 	) {
 		setImmediate(() => {
 			this.start();
@@ -113,21 +112,6 @@ export class Poller{
 		}, this.config.pollInterval);
 	}
 
-	private getBrowser(): Promise<Browser> {
-		if (this.browserPromise === null) {
-			this.browserPromise = this.createBrowser();
-		}
-
-		return this.browserPromise;
-	}
-
-	private async createBrowser(): Promise<Browser> {
-		return launch({
-			headless: true,
-			args: ["--no-sandbox"],
-		});
-	}
-
 	private getSession(): Promise<Session> {
 		if (this.sessionPromise === null) {
 			this.sessionPromise = this.createSession();
@@ -137,7 +121,7 @@ export class Poller{
 	}
 
 	private async createSession(): Promise<Session> {
-		const browser = await this.getBrowser();
+		const browser = await this.browser.getBrowser();
 		const page = await browser.newPage();
 
 		const url = expandTemplate(settings.channelUrl, {
