@@ -1,11 +1,18 @@
 {
 	"useBot": false,
+	"bot": {
+		"token": "",
+		"chatId": ""
+	},
 	"poller": {
 		"channelName": "overwatchleague",
 		"pollInterval": 300000
 	},
-	"bot": {
-		"token": "",
-		"chatId": ""
-	}
+	"streams": [
+		{
+			"host": "",
+			"port": 0,
+			"token": ""
+		}
+	]
 }

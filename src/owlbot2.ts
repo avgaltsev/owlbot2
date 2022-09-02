@@ -2,11 +2,15 @@ import {Config} from "./config";
 import {Chromium} from "./chromium";
 import {Bot} from "./bot";
 import {Poller} from "./poller";
+import {Stream} from "./stream";
 
 export class OwlBot2 {
 	private browser: Chromium;
 	private bot: Bot;
 	private poller: Poller;
+	private streams: Array<Stream>;
+
+	private interval: NodeJS.Timer | null = null;
 
 	public constructor(
 		private config: Config,
@@ -14,6 +18,7 @@ export class OwlBot2 {
 		this.browser = new Chromium();
 		this.bot = new Bot(config.bot);
 		this.poller = new Poller(config.poller, this.browser);
+		this.streams = config.streams.map((streamConfig) => new Stream(streamConfig));
 
 		// TODO: Add errors handling.
 		this.poller.on("error", (parameters) => {
@@ -42,6 +47,8 @@ export class OwlBot2 {
 		this.poller.on("liveStreamStart", (parameters) => {
 			this.logStatus("Live stream found", parameters);
 			this.reportStatus(`Live stream found: ${parameters.liveStream.title}`);
+
+			this.startStreams(parameters.liveStream.url);
 		});
 
 		this.poller.on("liveStreamSwitch", (parameters) => {
@@ -57,6 +64,8 @@ export class OwlBot2 {
 		this.poller.on("liveStreamEnd", (parameters) => {
 			this.logStatus("Live stream ended", parameters);
 			this.reportStatus(`Live stream ended: ${parameters.liveStream.title}`);
+
+			this.stopStreams();
 		});
 	}
 
@@ -67,6 +76,24 @@ export class OwlBot2 {
 	private reportStatus(message: string): void {
 		if (this.config.useBot) {
 			this.bot.sendMessage(message);
+		}
+	}
+
+	private startStreams(url: string): void {
+		this.streams.forEach((stream) => stream.open(`https://youtube.com${url}`));
+
+		this.interval = setInterval(() => {
+			this.streams.forEach((stream) => stream.ping());
+		});
+	}
+
+	private stopStreams(): void {
+		this.streams.forEach((stream) => stream.close());
+
+		if (this.interval !== null) {
+			clearInterval(this.interval);
+
+			this.interval = null;
 		}
 	}
 }

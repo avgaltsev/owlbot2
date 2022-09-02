@@ -6,8 +6,9 @@ import {JsonObject, isJsonObject} from "./json-object";
 import * as defaultConfig from "./json/default-config.json";
 
 export type Config = typeof defaultConfig;
-export type PollerConfig = typeof defaultConfig.poller;
 export type BotConfig = typeof defaultConfig.bot;
+export type PollerConfig = typeof defaultConfig.poller;
+export type StreamConfig = typeof defaultConfig.streams[0];
 
 function mergeConfigs<T extends JsonObject, K extends keyof T>(baseConfig: T, overrideConfig: JsonObject): T {
 	const properties = Object.keys(baseConfig) as Array<K>;
