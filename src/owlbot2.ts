@@ -2,7 +2,7 @@ import {Config} from "./config";
 import {Chromium} from "./chromium";
 import {Bot} from "./bot";
 import {Poller} from "./poller";
-import {Stream} from "./stream";
+import {isStreamError, Stream} from "./stream";
 
 export class OwlBot2 {
 	private browser: Chromium;
@@ -79,21 +79,61 @@ export class OwlBot2 {
 		}
 	}
 
-	private startStreams(url: string): void {
-		this.streams.forEach((stream) => stream.open(`https://youtube.com${url}`));
+	private async startStreams(url: string): Promise<void> {
+		try {
+			const screenshotGroups = await Promise.all(this.streams.map((stream) => stream.open(`https://youtube.com${url}`)));
+
+			screenshotGroups.forEach((screenshotGroup) => this.bot.sendScreenshots(screenshotGroup));
+		} catch (error) {
+			if (isStreamError(error)) {
+				if (error.screenshot !== undefined) {
+					this.bot.sendScreenshots([error.screenshot], error.message);
+				} else {
+					this.bot.sendMessage(error.message);
+				}
+			}
+		}
 
 		this.interval = setInterval(() => {
-			this.streams.forEach((stream) => stream.ping());
+			this.pingStreams();
 		});
 	}
 
-	private stopStreams(): void {
-		this.streams.forEach((stream) => stream.close());
+	private async pingStreams(): Promise<void> {
+		try {
+			const screenshotGroups = await Promise.all(this.streams.map((stream) => stream.ping()));
 
+			screenshotGroups.forEach((screenshotGroup) => this.bot.sendScreenshots(screenshotGroup));
+		} catch (error) {
+			if (isStreamError(error)) {
+				if (error.screenshot !== undefined) {
+					this.bot.sendScreenshots([error.screenshot], error.message);
+				} else {
+					this.bot.sendMessage(error.message);
+				}
+			}
+		}
+	}
+
+	private async stopStreams(): Promise<void> {
 		if (this.interval !== null) {
 			clearInterval(this.interval);
 
 			this.interval = null;
+		}
+
+		try {
+			const screenshotGroups = await Promise.all(this.streams.map((stream) => stream.close()));
+
+			screenshotGroups.forEach((screenshotGroup) => this.bot.sendScreenshots(screenshotGroup));
+		} catch (error) {
+			if (isStreamError(error)) {
+				if (error.screenshot !== undefined) {
+					this.bot.sendScreenshots([error.screenshot], error.message);
+				} else {
+					this.bot.sendMessage(error.message);
+				}
+			}
 		}
 	}
 }
