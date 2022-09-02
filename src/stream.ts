@@ -4,7 +4,7 @@ import {connect, Page} from "puppeteer";
 
 import {StreamConfig} from "./config";
 
-const STREAM_SELECTOR = "ytd-thumbnail-overlay-time-status-renderer[overlay-style=\"LIVE\"]";
+// const STREAM_SELECTOR = "ytd-thumbnail-overlay-time-status-renderer[overlay-style=\"LIVE\"]";
 const CHAT_BUTTON_SELECTOR = "ytd-live-chat-frame #show-hide-button";
 
 export class Stream {
@@ -53,9 +53,9 @@ export class Stream {
 
 		try {
 			await page.goto(url);
-			await page.waitForSelector(STREAM_SELECTOR);
-			await page.click(STREAM_SELECTOR);
-			// await page.waitForNavigation();
+			// await page.waitForSelector(STREAM_SELECTOR);
+			// await page.click(STREAM_SELECTOR);
+			// // await page.waitForNavigation();
 			await page.waitForTimeout(5000);
 			await page.waitForSelector(CHAT_BUTTON_SELECTOR);
 			await page.click(CHAT_BUTTON_SELECTOR);
