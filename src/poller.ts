@@ -215,6 +215,7 @@ export class Poller{
 		return requestJson(requestParameters, requestPayload);
 	}
 
+	// Extracting live streaming from the home tab
 	private extractLiveStreamData(pollResponse: Json): Json {
 		const tabs = getJsonValue(pollResponse, ["contents", "twoColumnBrowseResultsRenderer", "tabs"]);
 
@@ -252,52 +253,146 @@ export class Poller{
 			return null;
 		}
 
-		const itemSectionRenderer = getJsonValue(sectionListRenderer, ["contents", 0, "itemSectionRenderer"]);
+		const sectionListRendererContents = getJsonValue(sectionListRenderer, ["contents"]);
 
-		if (itemSectionRenderer === undefined) {
-			this.emitter.emit("error", {
-				error: "extractLiveStreamData: itemSectionRenderer is undefined",
-			});
+		const sectionListRendererContent = (Array.isArray(sectionListRendererContents) ? sectionListRendererContents : []).find((sectionListRendererContent) => { // lint shadowed variable
+			const liveNow = getJsonValue(sectionListRendererContent, ["itemSectionRenderer", "contents", 0, "shelfRenderer", "title", "runs", 0, "text"]);
 
-			return null;
-		}
-
-		const gridRenderer = getJsonValue(itemSectionRenderer, ["contents", 0, "gridRenderer"]);
-
-		if (gridRenderer === undefined) {
-			this.emitter.emit("error", {
-				error: "extractLiveStreamData: gridRenderer is undefined",
-			});
-
-			return null;
-		}
-
-		const gridVideoRenderer = getJsonValue(gridRenderer, ["items", 0, "gridVideoRenderer"]);
-
-		if (gridVideoRenderer === undefined) {
-			this.emitter.emit("error", {
-				error: "extractLiveStreamData: gridVideoRenderer is undefined",
-			});
-
-			return null;
-		}
-
-		const thumbnailOverlays = getJsonValue(gridVideoRenderer, ["thumbnailOverlays"]);
-
-		const liveOverlay = (Array.isArray(thumbnailOverlays) ? thumbnailOverlays : []).find((overlay) => {
-			const style = getJsonValue(overlay, ["thumbnailOverlayTimeStatusRenderer", "style"]);
-
-			return style === "LIVE";
+			return liveNow === "Live now";
 		});
 
-		if (liveOverlay === undefined) {
+		if (sectionListRendererContent === undefined) {
+			return null;
+		}
+
+		const shelfRenderer = getJsonValue(sectionListRendererContent, ["itemSectionRenderer", "contents", 0, "shelfRenderer"]);
+
+		if (shelfRenderer === undefined) {
 			this.emitter.emit("error", {
-				error: "extractLiveStreamData: liveOverlay is undefined",
+				error: "extractLiveStreamData: shelfRenderer is undefined",
 			});
 
 			return null;
 		}
 
-		return gridVideoRenderer;
+		const expandedShelfContentsRenderer = getJsonValue(shelfRenderer, ["content", "expandedShelfContentsRenderer"]);
+
+		if (expandedShelfContentsRenderer === undefined) {
+			this.emitter.emit("error", {
+				error: "extractLiveStreamData: expandedShelfContentsRenderer is undefined",
+			});
+
+			return null;
+		}
+
+		const expandedShelfContentsRendererItem = getJsonValue(expandedShelfContentsRenderer, ["items", 0]);
+
+		if (expandedShelfContentsRendererItem === undefined) {
+			this.emitter.emit("error", {
+				error: "extractLiveStreamData: expandedShelfContentsRendererItem is undefined",
+			});
+
+			return null;
+		}
+
+		const videoRenderer = getJsonValue(expandedShelfContentsRendererItem, ["videoRenderer"]);
+
+		if (videoRenderer === undefined) {
+			this.emitter.emit("error", {
+				error: "extractLiveStreamData: videoRenderer is undefined",
+			});
+
+			return null;
+		}
+
+		return videoRenderer;
 	}
+
+	// // Live tab tracking. It got broken in Oct 2022: sectionListRenderer element is missing, gtting richGridRenderer instead,
+	// // which is not showing any live streams for some reason.
+	// private extractLiveStreamData(pollResponse: Json): Json {
+	// 	const tabs = getJsonValue(pollResponse, ["contents", "twoColumnBrowseResultsRenderer", "tabs"]);
+
+	// 	const tab = (Array.isArray(tabs) ? tabs : []).find((tab) => { // lint shadowed variable
+	// 		const selected = getJsonValue(tab, ["tabRenderer", "selected"]);
+
+	// 		return selected !== null && selected !== undefined && selected;
+	// 	});
+
+	// 	if (tab === undefined) {
+	// 		this.emitter.emit("error", {
+	// 			error: "extractLiveStreamData: tab is undefined",
+	// 		});
+
+	// 		return null;
+	// 	}
+
+	// 	const tabRenderer = getJsonValue(tab, ["tabRenderer"]);
+
+	// 	if (tabRenderer === undefined) {
+	// 		this.emitter.emit("error", {
+	// 			error: "extractLiveStreamData: tabRenderer is undefined",
+	// 		});
+
+	// 		return null;
+	// 	}
+
+	// 	const sectionListRenderer = getJsonValue(tabRenderer, ["content", "sectionListRenderer"]);
+
+	// 	if (sectionListRenderer === undefined) {
+	// 		this.emitter.emit("error", {
+	// 			error: "extractLiveStreamData: sectionListRenderer is undefined",
+	// 		});
+
+	// 		return null;
+	// 	}
+
+	// 	const itemSectionRenderer = getJsonValue(sectionListRenderer, ["contents", 0, "itemSectionRenderer"]);
+
+	// 	if (itemSectionRenderer === undefined) {
+	// 		this.emitter.emit("error", {
+	// 			error: "extractLiveStreamData: itemSectionRenderer is undefined",
+	// 		});
+
+	// 		return null;
+	// 	}
+
+	// 	const gridRenderer = getJsonValue(itemSectionRenderer, ["contents", 0, "gridRenderer"]);
+
+	// 	if (gridRenderer === undefined) {
+	// 		this.emitter.emit("error", {
+	// 			error: "extractLiveStreamData: gridRenderer is undefined",
+	// 		});
+
+	// 		return null;
+	// 	}
+
+	// 	const gridVideoRenderer = getJsonValue(gridRenderer, ["items", 0, "gridVideoRenderer"]);
+
+	// 	if (gridVideoRenderer === undefined) {
+	// 		this.emitter.emit("error", {
+	// 			error: "extractLiveStreamData: gridVideoRenderer is undefined",
+	// 		});
+
+	// 		return null;
+	// 	}
+
+	// 	const thumbnailOverlays = getJsonValue(gridVideoRenderer, ["thumbnailOverlays"]);
+
+	// 	const liveOverlay = (Array.isArray(thumbnailOverlays) ? thumbnailOverlays : []).find((overlay) => {
+	// 		const style = getJsonValue(overlay, ["thumbnailOverlayTimeStatusRenderer", "style"]);
+
+	// 		return style === "LIVE";
+	// 	});
+
+	// 	if (liveOverlay === undefined) {
+	// 		this.emitter.emit("error", {
+	// 			error: "extractLiveStreamData: liveOverlay is undefined",
+	// 		});
+
+	// 		return null;
+	// 	}
+
+	// 	return gridVideoRenderer;
+	// }
 }
