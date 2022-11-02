@@ -1,6 +1,6 @@
 ```bash
-docker build -t avgaltsev/owlbot2:0.0.1 ./
-docker push avgaltsev/owlbot2:0.0.1
+docker build -t avgaltsev/owlbot2:0.0.2 ./
+docker push avgaltsev/owlbot2:0.0.2
 ```
 
 Create Azure VM using "Standard A2m v2" instance type.
@@ -44,7 +44,7 @@ Copy `src/json/default-config.json` to `config.json` inside the volume `owlbot2-
 Start the container.
 
 ```bash
-docker run -d --name=owlbot2 --restart=unless-stopped --net=host -v owlbot2-config:/root/config/ avgaltsev/owlbot2:0.0.1
+docker run -d --name=owlbot2 --restart=unless-stopped --net=host -v owlbot2-config:/root/config/ avgaltsev/owlbot2:0.0.2
 ```
 
 Updating config.
