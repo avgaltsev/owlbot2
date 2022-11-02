@@ -224,11 +224,63 @@ export class Poller{
 			return selected !== null && selected !== undefined && selected;
 		});
 
+		if (tab === undefined) {
+			this.emitter.emit("error", {
+				error: "extractLiveStreamData: tab is undefined",
+			});
+
+			return null;
+		}
+
 		const tabRenderer = getJsonValue(tab, ["tabRenderer"]);
+
+		if (tabRenderer === undefined) {
+			this.emitter.emit("error", {
+				error: "extractLiveStreamData: tabRenderer is undefined",
+			});
+
+			return null;
+		}
+
 		const sectionListRenderer = getJsonValue(tabRenderer, ["content", "sectionListRenderer"]);
+
+		if (sectionListRenderer === undefined) {
+			this.emitter.emit("error", {
+				error: "extractLiveStreamData: sectionListRenderer is undefined",
+			});
+
+			return null;
+		}
+
 		const itemSectionRenderer = getJsonValue(sectionListRenderer, ["contents", 0, "itemSectionRenderer"]);
+
+		if (itemSectionRenderer === undefined) {
+			this.emitter.emit("error", {
+				error: "extractLiveStreamData: itemSectionRenderer is undefined",
+			});
+
+			return null;
+		}
+
 		const gridRenderer = getJsonValue(itemSectionRenderer, ["contents", 0, "gridRenderer"]);
+
+		if (gridRenderer === undefined) {
+			this.emitter.emit("error", {
+				error: "extractLiveStreamData: gridRenderer is undefined",
+			});
+
+			return null;
+		}
+
 		const gridVideoRenderer = getJsonValue(gridRenderer, ["items", 0, "gridVideoRenderer"]);
+
+		if (gridVideoRenderer === undefined) {
+			this.emitter.emit("error", {
+				error: "extractLiveStreamData: gridVideoRenderer is undefined",
+			});
+
+			return null;
+		}
 
 		const thumbnailOverlays = getJsonValue(gridVideoRenderer, ["thumbnailOverlays"]);
 
@@ -238,10 +290,14 @@ export class Poller{
 			return style === "LIVE";
 		});
 
-		if (liveOverlay !== undefined && gridVideoRenderer !== undefined) {
-			return gridVideoRenderer;
+		if (liveOverlay === undefined) {
+			this.emitter.emit("error", {
+				error: "extractLiveStreamData: liveOverlay is undefined",
+			});
+
+			return null;
 		}
 
-		return null;
+		return gridVideoRenderer;
 	}
 }

@@ -2,6 +2,7 @@
 
 import {EventEmitter} from "events";
 
+// TODO: test with unknown instead of any
 type ListenerFunction = (...args: Array<any>) => void;
 
 type EmitterEventName<T> = keyof T extends string ? keyof T : never;
