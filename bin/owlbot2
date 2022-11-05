@@ -1,5 +1,5 @@
 #!/usr/bin/env node
 
-var main = require("../lib").main;
+const {main} = require("../lib");
 
 main();

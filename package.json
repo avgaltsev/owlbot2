@@ -30,6 +30,8 @@
 		"typescript": "^4.8.2"
 	},
 	"dependencies": {
+		"@somethings/config": "avgaltsev/config#0.0.1",
+		"@somethings/json": "avgaltsev/json#0.0.1",
 		"@somethings/telegram-bot-api": "^4.7.0",
 		"puppeteer": "^16.2.0"
 	},

@@ -5,11 +5,11 @@
 
 		"target": "es2022",
 		"module": "commonjs",
+		"moduleResolution": "node",
 		"resolveJsonModule": true,
 		"declaration": false,
 
 		"lib": [
-			"scripthost",
 			"es2022"
 		],
 

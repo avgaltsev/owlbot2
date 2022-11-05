@@ -1,5 +1,6 @@
+import {Json, JsonObject, isJsonObject, isJsonArray, getJsonValue} from "@somethings/json";
+
 import {PollerConfig} from "./config";
-import {Json, JsonObject, isJsonObject, isJsonArray, getJsonValue} from "./json";
 import {requestJson} from "./request-json";
 
 import * as settings from "./json/settings.json";

@@ -1,6 +1,6 @@
 import {Agent, request} from "https";
 
-import {Json, JsonObject} from "./json";
+import {Json, JsonObject} from "@somethings/json";
 
 export interface RequestParameters {
 	host: string;

@@ -1,3 +1,7 @@
+> Not using module imports and using CommonJS in this project for multiple reasons:
+> - Extensionless files are not supported: `bin/owlbot2` must be named `bin/owlbot2.js`.
+> - File extensions are [mandatory](https://nodejs.org/api/esm.html#mandatory-file-extensions) when importing, but TypeScript [doesn't generate it](https://github.com/microsoft/TypeScript/issues/40878).
+
 ```bash
 docker build -t avgaltsev/owlbot2:0.0.2 ./
 docker push avgaltsev/owlbot2:0.0.2
