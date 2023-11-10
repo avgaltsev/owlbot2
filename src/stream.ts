@@ -17,8 +17,8 @@ export class Stream {
 		this.pagePromise = connect({
 			browserWSEndpoint: this.url,
 			defaultViewport: {
-				width: 600,
-				height: 600,
+				width: 700,
+				height: 700,
 			},
 		}).then((browser) => browser.pages()).then((pages) => pages[0]);
 
@@ -31,8 +31,8 @@ export class Stream {
 			clip: {
 				x: 0,
 				y: 0,
-				width: 600,
-				height: 600,
+				width: 700,
+				height: 700,
 			},
 		}) as Buffer;
 		// const image = await Jimp.read(screenshot);

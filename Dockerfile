@@ -21,7 +21,7 @@ WORKDIR /root/
 
 COPY ./ ./
 
-RUN npm config set unsafe-perm true && npm install
+RUN npm install
 
 VOLUME /root/config/
 

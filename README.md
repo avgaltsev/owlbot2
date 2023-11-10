@@ -3,7 +3,7 @@
 > - File extensions are [mandatory](https://nodejs.org/api/esm.html#mandatory-file-extensions) when importing, but TypeScript [doesn't generate it](https://github.com/microsoft/TypeScript/issues/40878).
 
 ```bash
-docker build -t avgaltsev/owlbot2:0.0.2 ./
+docker build -t avgaltsev/owlbot2:0.0.3 ./
 docker push avgaltsev/owlbot2:0.0.2
 ```
 
